@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+
+import type { Metadata, Viewport } from "next";
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -6,14 +8,28 @@ import { AppDataProvider } from "@/components/AppDataProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AccentColorProvider } from "@/components/AccentColorProvider";
 import { QueryProvider } from "@/components/QueryProvider";
+
+import { VersionChecker } from "@/components/VersionChecker";
 import { SupabaseErrorBoundary } from "@/components/SupabaseErrorBoundary";
-import Script from "next/script";
+import { Toaster } from "@/components/ui/sonner";
+
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   display: 'swap',
 });
+
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+};
+
 
 export const metadata: Metadata = {
   title: "FTC TeamForge",
@@ -33,14 +49,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {process.env.NODE_ENV === "development" && (
+
+        {/* Disabled react-grab due to toLowerCase error */}
+        {/* {process.env.NODE_ENV === "development" && (
+
           <Script
             src="//unpkg.com/react-grab/dist/index.global.js"
             crossOrigin="anonymous"
             strategy="beforeInteractive"
             data-enabled="true"
           />
-        )}
+
+        )} */}
+
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -78,13 +99,18 @@ export default function RootLayout({
         <SupabaseErrorBoundary>
           <QueryProvider>
             <AuthProvider>
-              <AppDataProvider>
-                <ThemeProvider>
-                  <AccentColorProvider>
-                    {children}
-                  </AccentColorProvider>
-                </ThemeProvider>
-              </AppDataProvider>
+
+              <VersionChecker>
+                <AppDataProvider>
+                  <ThemeProvider>
+                    <AccentColorProvider>
+                      {children}
+                      <Toaster />
+                    </AccentColorProvider>
+                  </ThemeProvider>
+                </AppDataProvider>
+              </VersionChecker>
+
             </AuthProvider>
           </QueryProvider>
         </SupabaseErrorBoundary>

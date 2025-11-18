@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { useAppData } from '@/components/AppDataProvider'
 import { useAuth } from '@/components/AuthProvider'
 import { Button } from '@/components/ui/button'
-import { X, Loader2 } from 'lucide-react'
+
+import { X, Loader2, FileText } from 'lucide-react'
+
 import type { NotebookPage } from '@/types/notebook'
 import { BlockNoteEditor } from '@/components/notebook/BlockNoteEditor'
 import { getOrCreateNotebookPageForEntity } from '@/lib/notebookHelpers'
@@ -23,6 +25,10 @@ export function ScoutingTeamNotes({ teamNumber, teamName, onClose }: ScoutingTea
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState({ isSaving: false, hasPendingSave: false })
   const [pendingClose, setPendingClose] = useState(false)
+
+  const [hasTemplate, setHasTemplate] = useState(false)
+  const [templatePageId, setTemplatePageId] = useState<string | null>(null)
+
 
   useEffect(() => {
     fetchOrCreateNote()
@@ -54,6 +60,32 @@ export function ScoutingTeamNotes({ teamNumber, teamName, onClose }: ScoutingTea
       if (page) {
         setNotePage(page)
       }
+
+      
+      // Check for a separate scouting sheet template page
+      // The template is saved with a specific title pattern "Scouting Sheet - Team {number}"
+      const { data: templatePages } = await supabase
+        .from('notebook_pages')
+        .select('*')
+        .eq('team_id', team.id)
+        .eq('season_id', currentSeason.id)
+        .eq('linked_entity_type', 'scouting_team')
+        .eq('linked_entity_id', String(teamNumber))
+        .ilike('title', `Scouting Sheet - Team%`)
+        .maybeSingle()
+
+      if (templatePages?.content_text) {
+        try {
+          const parsed = JSON.parse(templatePages.content_text)
+          if (parsed.questions && Array.isArray(parsed.questions)) {
+            setHasTemplate(true)
+            setTemplatePageId(templatePages.id)
+          }
+        } catch {
+          // Not a valid template JSON
+        }
+      }
+
     } catch (error) {
       console.error('[ScoutingTeamNotes] Error fetching/creating note:', error)
     } finally {
@@ -114,6 +146,14 @@ export function ScoutingTeamNotes({ teamNumber, teamName, onClose }: ScoutingTea
     }
   }
 
+
+  const handleViewScoutingSheet = () => {
+    if (templatePageId) {
+      window.open(`/scouting/template/print?pageId=${templatePageId}`, '_blank')
+    }
+  }
+
+
   return (
     <>
       {/* Backdrop */}
@@ -132,18 +172,32 @@ export function ScoutingTeamNotes({ teamNumber, teamName, onClose }: ScoutingTea
               Team #{teamNumber} - {teamName}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-            disabled={pendingClose}
-          >
-            {pendingClose ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <X className="h-4 w-4" />
+
+          <div className="flex items-center gap-2">
+            {hasTemplate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewScoutingSheet}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                View Scouting Sheet
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClose}
+              disabled={pendingClose}
+            >
+              {pendingClose ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
         </div>
 
         {/* Content */}

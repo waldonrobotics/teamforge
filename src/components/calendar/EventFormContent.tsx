@@ -207,17 +207,27 @@ export function EventFormContent({ eventId, mode, onSuccess }: EventFormContentP
           throw new Error(updateError.message || 'Failed to update event')
         }
       } else {
-        // Create new event using Supabase client - include team_id and season_id
-        const { error: insertError } = await supabase
-          .from('events')
-          .insert([{
-            ...eventData,
-            team_id: team.id,
-            season_id: currentSeason.id
-          }])
 
-        if (insertError) {
-          throw new Error(insertError.message || 'Failed to create event')
+        // Create new event using API endpoint (handles recurring events)
+        // Get the session token for authentication
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          throw new Error('No active session. Please log in again.')
+        }
+
+        const response = await fetch('/api/events', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(eventData)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || 'Failed to create event')
+
         }
       }
 
